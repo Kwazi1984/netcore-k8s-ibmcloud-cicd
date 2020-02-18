@@ -1,0 +1,25 @@
+# Update <REGISTRY> <NAMESPACE> values before use
+# Replace app name instead of get-started-aspnet if you wish to use different name for your app
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: aspcore-k8s
+ labels:
+   app: aspcore-k8s
+spec:
+ replicas: 2
+ selector:
+   matchLabels:
+     app: aspcore-k8s
+ template:
+   metadata:
+     labels:
+       app: aspcore-k8s
+   spec:
+     containers:
+     - name: aspcore-k8s
+       image: kwazi1984/aspcore-ibmcloud-k8s:latest
+       ports:
+       - containerPort: 8080
+       imagePullPolicy: Always

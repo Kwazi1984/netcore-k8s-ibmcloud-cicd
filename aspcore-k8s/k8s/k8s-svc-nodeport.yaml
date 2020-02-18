@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: aspcore-k8s
+  name: aspcore-k8s
+spec:
+  type: NodePort
+  ports:
+  - port: 8080
+    targetPort: 80
+    nodePort: 30700
+    name: web
+
+  selector:
+    app: aspcore-k8s

@@ -1,0 +1,75 @@
+pipeline {
+    agent any
+    environment{     
+        // DOCKER_TAG = "latest"
+        DOCKER_TAG = getDockerTag()
+        KUBECONFIG = "/home/ubuntu/.bluemix/plugins/container-service/clusters/k8s-cluster/kube-config-hou02-k8s-cluster.yml"
+    }
+
+    stages{
+
+        // stage('Dotnet version'){
+        //     steps{
+        //         sh "dotnet --version"
+        //     }           
+        // }
+
+        stage('Unit tests'){
+            steps{
+                sh "dotnet test aspcore-k8s.Tests/aspcore-k8s.Tests.csproj"
+            }  
+        }
+
+        stage('Build Docker Image'){
+            steps{
+                sh "docker build ./aspcore-k8s -t kwazi1984/aspcore-ibmcloud-k8s:${DOCKER_TAG} "
+            }
+        }
+        stage('DockerHub Push'){
+            steps{
+                withCredentials([string(credentialsId: 'docker-hub', variable: 'dockerHubPwd')]) {
+                    sh "docker login -u kwazi1984 -p ${dockerHubPwd}"
+                    sh "docker push kwazi1984/aspcore-ibmcloud-k8s:${DOCKER_TAG}"
+                }
+            }
+        }
+
+        stage('Connect to ibm cloud'){
+            steps{
+                // sh "curl -sL https://ibm.biz/idt-installer | bash"
+
+                withCredentials([string(credentialsId: 'ibmcloud-pass', variable: 'ibmCloudPass')]) {
+                    sh "ibmcloud login -u ljedrusik84@gmail.com -p ${ibmCloudPass} -r us-south"
+                    sh "ibmcloud ks cluster config --cluster k8s-cluster"
+                }
+            }  
+        }
+        
+        stage('Deploy to Kubernetes'){
+            steps{
+               
+                //sh "kubectl config view"
+                //sh "echo \$KUBECONFIG"
+                //sh "kubectl get pod"
+
+                sh "kubectl version"                
+                sh "chmod +x aspcore-k8s/k8s/changeTag.sh"
+                sh "./aspcore-k8s/k8s/changeTag.sh ${DOCKER_TAG}"
+
+                script{
+                        try{
+                            sh "kubectl apply -f ./aspcore-k8s/k8s/."
+                        }catch(error){
+                            sh "kubectl create -f ./aspcore-k8s/k8s/."
+                        }
+                    }     
+
+            }
+        }
+    }
+}
+
+def getDockerTag(){
+    def tag  = sh script: 'git rev-parse HEAD', returnStdout: true
+    return tag
+}
